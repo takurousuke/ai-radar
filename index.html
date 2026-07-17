@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI / HR / Geo Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-400 via-amber-400 to-emerald-400 bg-clip-text text-transparent">
+                        Omni Intelligence Radar
+                    </h1>
+                    <p class="text-xs text-slate-400">AI技術 × HR組織 × 地政学・完全自動蓄積ダッシュボード</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="syncBadge" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    完全自動同期アクティブ
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        <!-- 点と線をつなぐ構造化解説 -->
+        <section class="bg-gradient-to-br from-indigo-950/60 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-xl">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-500 text-white flex items-center gap-1">
+                    <i data-lucide="git-merge" class="w-3.5 h-3.5"></i> 最新の構造的接続（点と線をつなぐ解釈）
+                </span>
+                <span id="nexusDate" class="text-xs text-slate-400"></span>
+            </div>
+            <div id="nexusContent" class="space-y-4 text-sm text-slate-300">
+                <!-- 動的読み込み -->
+            </div>
+        </section>
+
+        <!-- カテゴリ切り替え ＆ 検索 -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div class="flex gap-2 overflow-x-auto w-full sm:w-auto" id="categoryFilter">
+                <button class="filter-btn active px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 text-white" data-category="all">すべて表示</button>
+                <button class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400" data-category="ai">💻 AI技術</button>
+                <button class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400" data-category="hr">👥 HR・組織</button>
+                <button class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-400" data-category="geo">🌐 地政学・経済</button>
+            </div>
+            <input type="text" id="searchInput" placeholder="全蓄積ニュースを検索..." class="w-full sm:w-64 bg-slate-800 text-xs px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <!-- ニュースグリッド -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="newsGrid">
+            <!-- 動的読み込み -->
+        </div>
+    </main>
+
+    <script>
+        let allArticles = [];
+        let currentCategory = 'all';
+
+        async function loadData() {
+            try {
+                const res = await fetch('data.json');
+                const data = await res.json();
+                
+                // 解説レンダリング
+                if(data.insights && data.insights.length > 0) {
+                    const latest = data.insights[0];
+                    document.getElementById('nexusDate').innerText = latest.date;
+                    document.getElementById('nexusContent').innerHTML = `
+                        <h3 class="font-bold text-indigo-300 text-base mb-2">${latest.nexus.title}</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-slate-800/60 p-3.5 rounded-xl border border-indigo-500/20">${latest.nexus.insight1}</div>
+                            <div class="bg-slate-800/60 p-3.5 rounded-xl border border-amber-500/20">${latest.nexus.insight2}</div>
+                        </div>
+                        <div class="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-xs text-indigo-200 mt-2">
+                            💡 <strong>一言要約：</strong> ${latest.nexus.summary}
+                        </div>
+                    `;
+                }
+
+                // 記事レンダリング
+                allArticles = data.articles || [];
+                renderArticles();
+            } catch(e) {
+                document.getElementById('newsGrid').innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">初回ニュース取得中、またはデータ準備中です。朝7時の自動更新をお待ちいただくか、GitHub Actionsから手動実行してください。</div>`;
+            }
+        }
+
+        function renderArticles() {
+            const grid = document.getElementById('newsGrid');
+            grid.innerHTML = '';
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            const filtered = allArticles.filter(a => {
+                const matchCat = currentCategory === 'all' || a.category === currentCategory;
+                const matchSearch = a.title.toLowerCase().includes(search) || a.summary.toLowerCase().includes(search);
+                return matchCat && matchSearch;
+            });
+
+            filtered.forEach(item => {
+                const card = `
+                    <article class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500/50 transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-700 text-indigo-300 border border-indigo-500/20">${item.categoryName}</span>
+                                <span class="text-xs text-slate-400">${item.date}</span>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-100 mb-2 leading-snug">${item.title}</h3>
+                            <p class="text-slate-300 text-xs leading-relaxed mb-4">${item.summary}</p>
+                        </div>
+                        <div class="pt-3 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400">
+                            <span>🏷️ ${item.tag}</span>
+                            <span>インパクト: ${item.impact}</span>
+                        </div>
+                    </article>
+                `;
+                grid.insertAdjacentHTML('beforeend', card);
+            });
+            lucide.createIcons();
+        }
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.replace('bg-indigo-600', 'bg-slate-800'));
+                e.target.classList.replace('bg-slate-800', 'bg-indigo-600');
+                currentCategory = e.target.dataset.category;
+                renderArticles();
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', renderArticles);
+        loadData();
+    </script>
+</body>
+</html>
