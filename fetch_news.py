@@ -1,38 +1,110 @@
-name: Daily Auto News Fetcher
+import os
+import json
+import re
+from google import genai
+from google.genai import types
 
-on:
-  schedule:
-    # 毎日 UTC 22:00（日本時間 朝7:00）に自動実行
-    - cron: '0 22 * * *'
-  workflow_dispatch: # 手動実行ボタン
+# Gemini API設定（新公式SDK）
+GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=GENAI_API_KEY)
 
-jobs:
-  build-and-update:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+prompt = """
+あなたは高度なAI・HR・地政学アナリストです。
+本日時点の最新ニュースを検索し、以下の3つのカテゴリごとに1件ずつ（計3件）の重要トピックを特定してください。
+また、それら3つのトピックがどう相互に関連しているか（点と線をつなぐ解説）を作成してください。
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+カテゴリ：
+1. ai (AI技術・インフラ)
+2. hr (人材・採用・組織リスキリング)
+3. geo (地政学・歴史・マクロ経済)
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install google-genai
+以下の厳密なJSONフォーマットのみで出力してください。Markdownのコードブロック(```json)やその他の解説文は絶対に含めず、純粋なJSON文字列のみを出力してください。
 
-      - name: Fetch and Process News
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          python fetch_news.py
+{
+  "date": "YYYY/MM/DD",
+  "nexusInsight": {
+    "title": "本日の構造的接続（点と線をつなぐ解説）",
+    "insight1": "文脈1の解説文章...",
+    "insight2": "文脈2の解説文章...",
+    "summary": "一言要約..."
+  },
+  "articles": [
+    {
+      "id": 1,
+      "category": "ai",
+      "categoryName": "💻 AI技術・インフラ",
+      "title": "ニュースタイトル",
+      "summary": "要約文章",
+      "tag": "タグ1 / タグ2",
+      "impact": "最高"
+    },
+    {
+      "id": 2,
+      "category": "hr",
+      "categoryName": "👥 人材・組織リスキリング",
+      "title": "ニュースタイトル",
+      "summary": "要約文章",
+      "tag": "タグ1 / タグ2",
+      "impact": "ハイ"
+    },
+    {
+      "id": 3,
+      "category": "geo",
+      "categoryName": "🌐 地政学・マクロ経済",
+      "title": "ニュースタイトル",
+      "summary": "要約文章",
+      "tag": "タグ1 / タグ2",
+      "impact": "最高"
+    }
+  ]
+}
+"""
 
-      - name: Commit and Push Changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git commit -m "Auto-update: Daily AI/HR/Geo News [skip ci]" || exit 0
-          git push
+def main():
+    try:
+        # 新しいGoogle Searchツール設定
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())]
+            )
+        )
+        
+        text = response.text.strip()
+        # 不要なMarkdownコードブロックの除去
+        text = re.sub(r"^```json\s*", "", text, flags=re.MULTILINE)
+        text = re.sub(r"^```\s*", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
+        
+        new_data = json.loads(text.strip())
+        
+        # 既存データの読み込みと蓄積
+        data_file = "data.json"
+        if os.path.exists(data_file):
+            with open(data_file, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        else:
+            history = {"insights": [], "articles": []}
+            
+        # 新データを先頭に追加（蓄積）
+        history["insights"].insert(0, {
+            "date": new_data["date"],
+            "nexus": new_data["nexusInsight"]
+        })
+        for art in new_data["articles"]:
+            art["date"] = new_data["date"]
+            art["unique_id"] = len(history["articles"]) + 1
+            history["articles"].insert(0, art)
+            
+        # 保存
+        with open(data_file, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+            
+        print("Successfully updated news data.")
+    except Exception as e:
+        print(f"Error during execution: {e}")
+        raise e
+
+if __name__ == "__main__":
+    main()
