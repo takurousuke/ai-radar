@@ -4,7 +4,7 @@ import re
 from google import genai
 from google.genai import types
 
-# Gemini API設定（新公式SDK）
+# Gemini API設定
 GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GENAI_API_KEY)
 
@@ -21,7 +21,7 @@ prompt = """
 以下の厳密なJSONフォーマットのみで出力してください。Markdownのコードブロック(```json)やその他の解説文は絶対に含めず、純粋なJSON文字列のみを出力してください。
 
 {
-  "date": "YYYY/MM/DD",
+  "date": "2026/07/22",
   "nexusInsight": {
     "title": "本日の構造的接続（点と線をつなぐ解説）",
     "insight1": "文脈1の解説文章...",
@@ -62,9 +62,9 @@ prompt = """
 
 def main():
     try:
-        # 新しいGoogle Searchツール設定
+        # モデルを標準の gemini-1.5-flash に変更
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())]
