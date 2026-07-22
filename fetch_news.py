@@ -1,10 +1,10 @@
 import os
 import json
 import re
+import time
 from google import genai
 from google.genai import types
 
-# Gemini API設定（新公式SDK）
 GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GENAI_API_KEY)
 
@@ -60,26 +60,37 @@ prompt = """
 }
 """
 
+def generate_with_retry(max_retries=3, delay=30):
+    """429エラー発生時に待機してリトライする処理"""
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                )
+            )
+            return response
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                print(f"Rate limit hit. Retrying in {delay} seconds... (Attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
+            else:
+                raise e
+    raise Exception("Max retries exceeded for Gemini API call.")
+
 def main():
     try:
-        # 新SDK用の標準モデル gemini-2.0-flash に指定
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            )
-        )
+        response = generate_with_retry()
         
         text = response.text.strip()
-        # 不要なMarkdownコードブロックの除去
         text = re.sub(r"^```json\s*", "", text, flags=re.MULTILINE)
         text = re.sub(r"^```\s*", "", text, flags=re.MULTILINE)
         text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
         
         new_data = json.loads(text.strip())
         
-        # 既存データの読み込みと蓄積
         data_file = "data.json"
         if os.path.exists(data_file):
             with open(data_file, "r", encoding="utf-8") as f:
@@ -87,7 +98,6 @@ def main():
         else:
             history = {"insights": [], "articles": []}
             
-        # 新データを先頭に追加（蓄積）
         history["insights"].insert(0, {
             "date": new_data["date"],
             "nexus": new_data["nexusInsight"]
@@ -97,7 +107,6 @@ def main():
             art["unique_id"] = len(history["articles"]) + 1
             history["articles"].insert(0, art)
             
-        # 保存
         with open(data_file, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
             
