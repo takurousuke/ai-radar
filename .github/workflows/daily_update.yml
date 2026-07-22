@@ -4,24 +4,24 @@ on:
   schedule:
     # 毎日 UTC 22:00（日本時間 朝7:00）に自動実行
     - cron: '0 22 * * *'
-  workflow_dispatch: # 手動実行ボタンも用意
+  workflow_dispatch: # 手動実行ボタン
 
 jobs:
   build-and-update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-generativeai
+          pip install google-genai
 
       - name: Fetch and Process News
         env:
