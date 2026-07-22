@@ -4,7 +4,7 @@ import re
 from google import genai
 from google.genai import types
 
-# Gemini API設定
+# Gemini API設定（新公式SDK）
 GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GENAI_API_KEY)
 
@@ -62,9 +62,9 @@ prompt = """
 
 def main():
     try:
-        # モデルを標準の gemini-1.5-flash に変更
+        # 新SDK用の標準モデル gemini-2.0-flash に指定
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())]
