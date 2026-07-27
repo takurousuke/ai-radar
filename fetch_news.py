@@ -21,7 +21,7 @@ prompt = """
 以下の厳密なJSONフォーマットのみで出力してください。Markdownのコードブロック(```json)やその他の解説文は絶対に含めず、純粋なJSON文字列のみを出力してください。
 
 {
-  "date": "2026/07/23",
+  "date": "2026/07/27",
   "nexusInsight": {
     "title": "本日の構造的接続（点と線をつなぐ解説）",
     "insight1": "文脈1の解説文章...",
@@ -60,7 +60,8 @@ prompt = """
 }
 """
 
-def generate_with_retry(max_retries=3, delay=60):
+def generate_with_retry(max_retries=3, delay=65):
+    """429制限時に65秒待機して制限解除後に再試行する"""
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
@@ -73,7 +74,7 @@ def generate_with_retry(max_retries=3, delay=60):
             return response
         except Exception as e:
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                print(f"制限検知。{delay}秒待機して再試行します... ({attempt + 1}/{max_retries})")
+                print(f"制限検知。{delay}秒待機してリトライします... (試行 {attempt + 1}/{max_retries})")
                 time.sleep(delay)
             else:
                 raise e
