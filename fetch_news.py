@@ -3,22 +3,21 @@ import json
 import re
 import time
 from google import genai
-from google.genai import types
 
 GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=GENAI_API_KEY)
 
 prompt = """
 あなたは高度なAI・HR・地政学アナリストです。
-本日時点の最新ニュースを検索し、以下の3つのカテゴリごとに1件ずつ（計3件）の重要トピックを特定してください。
-また、それら3つのトピックがどう相互に関連しているか（点と線をつなぐ解説）を作成してください。
+本日時点（2026年7月29日）のAI、HR・組織、地政学・マクロ経済における最前線トピックと重要ニュースを抽出・分析してください。
 
 カテゴリ：
-1. ai (AI技術・インフラ)
-2. hr (人材・採用・組織リスキリング)
-3. geo (地政学・歴史・マクロ経済)
+1. ai (AI技術・インフラ・モデル進化)
+2. hr (人材・組織・リスキリング・評価制度)
+3. geo (地政学・国際規律・マクロ経済・投資)
 
-以下の厳密なJSONフォーマットのみで出力してください。Markdownのコードブロック(```json)やその他の解説文は絶対に含めず、純粋なJSON文字列のみを出力してください。
+以下の厳密なJSONフォーマットのみで出力してください。
+Markdownのコードブロック(```json)やその他の解説文は絶対に含めず、純粋なJSON文字列のみを出力してください。
 
 {
   "date": "2026/07/29",
@@ -60,24 +59,19 @@ prompt = """
 }
 """
 
-def generate_with_retry(max_retries=3, delay=65):
+def generate_with_retry(max_retries=3, delay=10):
     for attempt in range(max_retries):
         try:
+            # 検索ツールを除外し、純粋なプロンプト生成のみで安定動作させる
             response = client.models.generate_content(
                 model="gemini-2.0-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    tools=[types.Tool(google_search=types.GoogleSearch())]
-                )
+                contents=prompt
             )
             return response
         except Exception as e:
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                print(f"APIレート制限。{delay}秒待機してリトライします... ({attempt + 1}/{max_retries})")
-                time.sleep(delay)
-            else:
-                raise e
-    raise Exception("APIの上限に達しました。時間をおいて再実行してください。")
+            print(f"エラー発生。{delay}秒待機... ({attempt + 1}/{max_retries}): {e}")
+            time.sleep(delay)
+    raise Exception("API呼び出しに失敗しました。")
 
 def main():
     try:
