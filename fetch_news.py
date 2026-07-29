@@ -60,12 +60,11 @@ prompt = """
 }
 """
 
-def generate_with_retry(max_retries=3, delay=70):
+def generate_with_retry(max_retries=3, delay=65):
     for attempt in range(max_retries):
         try:
-            # 最新の gemini-2.5-flash を指定
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.0-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     tools=[types.Tool(google_search=types.GoogleSearch())]
