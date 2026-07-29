@@ -2,9 +2,13 @@ name: Daily Auto News Fetcher
 
 on:
   schedule:
-    # 毎日 UTC 22:00（日本時間 朝7:00）に自動実行
-    - cron: '0 22 * * *'
-  workflow_dispatch: # 手動実行ボタン
+    # 日本時間の早朝 5:00（UTC 20:00）に自動実行
+    # 朝7時にChromeを開く時にはすでに更新が完了している状態を作ります
+    - cron: '0 20 * * *'
+  workflow_dispatch: # 非常用の手動実行ボタン
+
+permissions:
+  contents: write
 
 jobs:
   build-and-update:
@@ -34,5 +38,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json
-          git commit -m "Auto-update: Daily AI/HR/Geo News [skip ci]" || exit 0
+          git commit -m "Auto-update: Daily AI/HR/Geo News" || exit 0
           git push
